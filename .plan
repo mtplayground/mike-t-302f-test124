@@ -1,0 +1,38 @@
+# Architecture Plan
+
+## Module Structure
+
+- `frontend/`: Vite React application with Tailwind, React Query, API client, task list UI, form controls, inline editing, filters, toasts, and Playwright-facing user flows.
+- `backend/`: Express API server with environment loading, SQLite database access, migration runner, repository layer, service layer, REST route handlers, static frontend serving, and backend Vitest tests.
+- `shared/`: TypeScript package for cross-runtime task types, Zod schemas, request/response contracts, and validation helpers used by both frontend and backend.
+- Root workspace: shared TypeScript, ESLint, Prettier, Vitest, build/start scripts, README, and orchestration scripts for frontend/backend development.
+
+## File Organization
+
+- `frontend/src/main.tsx`, `frontend/src/App.tsx`: React entry and top-level app composition.
+- `frontend/src/api/`: typed API client and React Query hooks.
+- `frontend/src/components/tasks/`: task list, add form, edit controls, due date editor, filter/sort controls, delete confirmation, and undo toast.
+- `backend/src/server.ts`: Express app/server bootstrap.
+- `backend/src/config/`: environment parsing and runtime configuration.
+- `backend/src/db/`: SQLite connection, migrations, migration runner, and test database utilities.
+- `backend/src/tasks/`: task repository, service, REST routes, and tests.
+- `shared/src/task.ts`: task type, create/update schemas, query schemas, and DTO types.
+
+## Issue Dependencies
+
+- Foundation: #1, #2, #3, #4, #5, #7 establish repo layout, tooling, frontend/backend scaffolds, env handling, and tests.
+- Data contract and persistence: #8 depends on #1/#2; #6 depends on #4/#5; #9 depends on #6/#8.
+- Backend behavior: #10 depends on #9; #11 depends on #10; #12 depends on #9/#10/#11.
+- Frontend data flow: #13 depends on #8/#11; #14 depends on #13; #15-#18 build on #14.
+- UX refinement: #19 depends on delete support from #14; #23 depends on the core UI flows from #14-#19.
+- Integration and delivery: #20 depends on #3/#4; #21 depends on #20; #22 depends on #14/#15/#20/#21; #24 should be last.
+
+## Key Design Decisions
+
+- Use npm workspaces for `frontend`, `backend`, and `shared` so shared contracts are imported directly during development and built consistently for production.
+- Treat `shared` as the source of truth for task validation and API DTOs. Backend validates all inbound data with Zod; frontend reuses schemas where helpful for form validation.
+- Keep backend layering explicit: routes handle HTTP concerns, services enforce business rules, repositories own SQL and mapping.
+- Use SQLite with migration files committed under `backend/src/db/migrations` and a small idempotent migration runner usable by app startup and tests.
+- Prefer integration-style tests around repository/service behavior using isolated SQLite databases, plus focused frontend component tests for user interactions.
+- Serve the built frontend from Express in production while keeping Vite dev server and API server separate during local development.
+- Keep task timestamps and due dates as ISO strings in API contracts; SQLite stores text timestamps to avoid timezone ambiguity.
