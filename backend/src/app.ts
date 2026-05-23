@@ -1,6 +1,8 @@
 import cors from 'cors';
 import express, { type ErrorRequestHandler, type RequestHandler } from 'express';
 
+import { loadConfig, type AppConfig } from './config/env.js';
+
 const jsonBodyLimit = '1mb';
 
 type HttpError = Error & {
@@ -51,16 +53,15 @@ const errorHandler: ErrorRequestHandler = (error, _req, res, _next) => {
   });
 };
 
-export function createApp() {
+export function createApp(config: AppConfig = loadConfig()) {
   const app = express();
-  const isDevelopment = process.env.NODE_ENV !== 'production';
 
   app.disable('x-powered-by');
 
-  if (isDevelopment) {
+  if (config.corsOrigin !== false) {
     app.use(
       cors({
-        origin: true,
+        origin: config.corsOrigin,
       }),
     );
   }
