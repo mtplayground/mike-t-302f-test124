@@ -1,10 +1,6 @@
-import { randomUUID } from 'node:crypto';
-
 import {
   Task as TaskSchema,
-  TaskCreate as TaskCreateSchema,
   TaskFilter as TaskFilterSchema,
-  TaskUpdate as TaskUpdateSchema,
   type Task,
   type TaskCreate,
   type TaskFilter,
@@ -28,6 +24,16 @@ export type TaskSortDirection = 'asc' | 'desc';
 export type TaskSort = {
   field?: TaskSortField;
   direction?: TaskSortDirection;
+};
+
+export type TaskInsert = Required<TaskCreate> & {
+  id: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type TaskPatch = TaskUpdate & {
+  updatedAt: string;
 };
 
 const sortColumns = {
@@ -143,54 +149,46 @@ export function createTasksRepo(database: AppDatabase) {
       return row ? mapTaskRow(row) : null;
     },
 
-    create(input: TaskCreate): Task {
-      const parsedInput = TaskCreateSchema.parse(input);
-      const id = randomUUID();
-      const now = new Date().toISOString();
-
+    create(input: TaskInsert): Task {
       insertTask.run({
-        id,
-        title: parsedInput.title,
-        completed: parsedInput.completed ? 1 : 0,
-        dueDate: parsedInput.dueDate ?? null,
-        createdAt: now,
-        updatedAt: now,
+        id: input.id,
+        title: input.title,
+        completed: input.completed ? 1 : 0,
+        dueDate: input.dueDate,
+        createdAt: input.createdAt,
+        updatedAt: input.updatedAt,
       });
 
-      const task = this.get(id);
+      const task = this.get(input.id);
 
       if (!task) {
-        throw new Error(`Failed to read task after insert: ${id}`);
+        throw new Error(`Failed to read task after insert: ${input.id}`);
       }
 
       return task;
     },
 
-    update(id: string, input: TaskUpdate): Task | null {
-      const parsedInput = TaskUpdateSchema.parse(input);
+    update(id: string, input: TaskPatch): Task | null {
       const assignments: string[] = [];
       const params: Record<string, string | number | null> = { id };
 
-      if (parsedInput.title !== undefined) {
+      if (input.title !== undefined) {
         assignments.push('title = @title');
-        params.title = parsedInput.title;
+        params.title = input.title;
       }
 
-      if (parsedInput.completed !== undefined) {
+      if (input.completed !== undefined) {
         assignments.push('completed = @completed');
-        params.completed = parsedInput.completed ? 1 : 0;
+        params.completed = input.completed ? 1 : 0;
       }
 
-      if (parsedInput.dueDate !== undefined) {
+      if (input.dueDate !== undefined) {
         assignments.push('due_date = @dueDate');
-        params.dueDate = parsedInput.dueDate;
+        params.dueDate = input.dueDate;
       }
 
-      if (assignments.length === 0) {
-        return this.get(id);
-      }
-
-      assignments.push("updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')");
+      assignments.push('updated_at = @updatedAt');
+      params.updatedAt = input.updatedAt;
 
       database.prepare(`UPDATE tasks SET ${assignments.join(', ')} WHERE id = @id`).run(params);
 
