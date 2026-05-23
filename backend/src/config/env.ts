@@ -13,7 +13,7 @@ export type AppConfig = {
   isProduction: boolean;
   host: string;
   port: number;
-  sqlitePath: string | undefined;
+  sqlitePath: string;
   corsOrigin: boolean | string | string[];
   frontendStaticDir: string;
 };
@@ -58,9 +58,9 @@ function readHost(value: string | undefined): string {
   return host;
 }
 
-function readOptionalPath(value: string | undefined, name: string): string | undefined {
+function readRequiredPath(value: string | undefined, name: string): string {
   if (!value) {
-    return undefined;
+    throw new Error(`${name} is required.`);
   }
 
   const path = value.trim();
@@ -122,7 +122,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     isProduction: nodeEnv === 'production',
     host: readHost(env.HOST),
     port: readPort(env.PORT),
-    sqlitePath: readOptionalPath(env.SQLITE_PATH, 'SQLITE_PATH'),
+    sqlitePath: readRequiredPath(env.SQLITE_PATH, 'SQLITE_PATH'),
     corsOrigin: readCorsOrigin(env.CORS_ORIGIN, nodeEnv),
     frontendStaticDir: readPath(env.FRONTEND_STATIC_DIR, 'FRONTEND_STATIC_DIR', '../frontend/dist'),
   };
