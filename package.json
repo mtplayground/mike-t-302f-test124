@@ -5,9 +5,9 @@
   "type": "module",
   "description": "Task application monorepo",
   "workspaces": [
-    "frontend",
+    "shared",
     "backend",
-    "shared"
+    "frontend"
   ],
   "scripts": {
     "dev": "npm run dev --workspaces --if-present",
