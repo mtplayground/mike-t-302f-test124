@@ -1,0 +1,19 @@
+{
+  "name": "mike-t-302f-test124",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Task application monorepo",
+  "workspaces": [
+    "frontend",
+    "backend",
+    "shared"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present",
+    "start": "npm run start --workspace @zeroclaw/backend --if-present"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
