@@ -240,6 +240,32 @@ function UndoToast({ onUndo, task }: UndoToastProps) {
   );
 }
 
+function LoadingSkeleton() {
+  return (
+    <section
+      aria-busy="true"
+      aria-label="Loading tasks"
+      className="rounded-lg border border-slate-200 bg-white shadow-sm"
+    >
+      <div className="space-y-0 divide-y divide-slate-100">
+        {[0, 1, 2].map((item) => (
+          <div key={item} className="flex items-start gap-4 px-4 py-4 sm:px-5">
+            <div className="mt-1 h-5 w-5 rounded border border-slate-200 bg-slate-100" />
+            <div className="min-w-0 flex-1">
+              <div className="h-5 w-2/3 rounded bg-slate-200" />
+              <div className="mt-3 flex gap-3">
+                <div className="h-8 w-36 rounded bg-slate-100" />
+                <div className="h-8 w-20 rounded bg-slate-100" />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+      <p className="sr-only">Loading tasks...</p>
+    </section>
+  );
+}
+
 type TaskListViewProps = {
   filter?: TaskListFilter;
   sort?: TaskListSort;
@@ -291,19 +317,15 @@ export function TaskListView({ filter = {}, sort = {} }: TaskListViewProps) {
   useEffect(() => clearDeleteTimer, []);
 
   if (tasksQuery.isLoading) {
-    return (
-      <section
-        aria-busy="true"
-        className="rounded-lg border border-slate-200 bg-white p-6 text-slate-700 shadow-sm"
-      >
-        <p className="font-medium">Loading tasks...</p>
-      </section>
-    );
+    return <LoadingSkeleton />;
   }
 
   if (tasksQuery.isError) {
     return (
-      <section className="rounded-lg border border-red-200 bg-red-50 p-6 text-red-950 shadow-sm">
+      <section
+        className="rounded-lg border border-red-200 bg-red-50 p-6 text-red-950 shadow-sm"
+        role="alert"
+      >
         <h2 className="text-lg font-semibold">Tasks could not be loaded.</h2>
         <p className="mt-2 text-sm text-red-800">{errorMessage(tasksQuery.error)}</p>
         <button
@@ -332,7 +354,10 @@ export function TaskListView({ filter = {}, sort = {} }: TaskListViewProps) {
   return (
     <section className="space-y-4" aria-label="Task list">
       {mutationError ? (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-900">
+        <div
+          className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-900"
+          role="alert"
+        >
           {errorMessage(mutationError)}
         </div>
       ) : null}

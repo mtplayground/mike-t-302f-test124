@@ -56,6 +56,22 @@ describe('App', () => {
     expect(await screen.findByText('No tasks yet.')).toBeInTheDocument();
   });
 
+  it('shows an accessible task loading error', async () => {
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ error: { message: 'Backend unavailable.' } }), {
+        status: 500,
+        statusText: 'Internal Server Error',
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+    renderApp();
+
+    const alert = await screen.findByRole('alert');
+
+    expect(alert).toHaveTextContent('Tasks could not be loaded.');
+    expect(alert).toHaveTextContent('Backend unavailable.');
+  });
+
   it('renders tasks, calls completion endpoint, and starts undoable delete', async () => {
     fetchMock.mockImplementation((_input: RequestInfo | URL, init?: RequestInit) => {
       const method = init?.method ?? 'GET';

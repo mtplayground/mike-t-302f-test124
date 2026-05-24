@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 
 import { ApiProvider } from './api/queryProvider';
 import { App } from './App';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import './styles.css';
 
 const rootElement = document.getElementById('root');
@@ -13,8 +14,10 @@ if (!rootElement) {
 
 createRoot(rootElement).render(
   <StrictMode>
-    <ApiProvider>
-      <App />
-    </ApiProvider>
+    <ErrorBoundary>
+      <ApiProvider>
+        <App />
+      </ApiProvider>
+    </ErrorBoundary>
   </StrictMode>,
 );

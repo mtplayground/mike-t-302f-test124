@@ -75,7 +75,9 @@ export function AddTaskForm() {
       </div>
 
       {createTask.isError ? (
-        <p className="mt-3 text-sm text-red-700">{errorMessage(createTask.error)}</p>
+        <p className="mt-3 text-sm text-red-700" role="alert">
+          {errorMessage(createTask.error)}
+        </p>
       ) : null}
     </form>
   );
