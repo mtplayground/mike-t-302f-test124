@@ -1,6 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 
+import { ApiProvider } from './api/queryProvider';
 import { App } from './App';
 import './styles.css';
 
@@ -12,6 +13,8 @@ if (!rootElement) {
 
 createRoot(rootElement).render(
   <StrictMode>
-    <App />
+    <ApiProvider>
+      <App />
+    </ApiProvider>
   </StrictMode>,
 );
