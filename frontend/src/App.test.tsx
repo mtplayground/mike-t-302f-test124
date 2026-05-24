@@ -151,4 +151,105 @@ describe('App', () => {
       expect(dueDateInput).toHaveValue('');
     });
   });
+
+  it('saves an edited task title on blur', async () => {
+    fetchMock.mockImplementation((_input: RequestInfo | URL, init?: RequestInit) => {
+      const method = init?.method ?? 'GET';
+
+      if (method === 'PATCH') {
+        return Promise.resolve(
+          new Response(JSON.stringify({ task: { ...task, title: 'Ship edited title' } }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }),
+        );
+      }
+
+      return Promise.resolve(
+        new Response(JSON.stringify({ tasks: [task] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      );
+    });
+    renderApp();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Ship issue 14' }));
+    const titleInput = screen.getByLabelText('Edit title for "Ship issue 14"');
+
+    fireEvent.change(titleInput, { target: { value: '  Ship edited title  ' } });
+    fireEvent.blur(titleInput);
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/tasks/018f4477-3d07-7d8c-9c41-13d9340d98a2',
+        expect.objectContaining({
+          body: JSON.stringify({ title: 'Ship edited title' }),
+          method: 'PATCH',
+        }),
+      );
+    });
+  });
+
+  it('saves an edited task title on Enter', async () => {
+    fetchMock.mockImplementation((_input: RequestInfo | URL, init?: RequestInit) => {
+      const method = init?.method ?? 'GET';
+
+      if (method === 'PATCH') {
+        return Promise.resolve(
+          new Response(JSON.stringify({ task: { ...task, title: 'Ship with enter' } }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }),
+        );
+      }
+
+      return Promise.resolve(
+        new Response(JSON.stringify({ tasks: [task] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      );
+    });
+    renderApp();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Ship issue 14' }));
+    const titleInput = screen.getByLabelText('Edit title for "Ship issue 14"');
+
+    fireEvent.change(titleInput, { target: { value: 'Ship with enter' } });
+    fireEvent.keyDown(titleInput, { key: 'Enter' });
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/tasks/018f4477-3d07-7d8c-9c41-13d9340d98a2',
+        expect.objectContaining({
+          body: JSON.stringify({ title: 'Ship with enter' }),
+          method: 'PATCH',
+        }),
+      );
+    });
+  });
+
+  it('cancels an edited task title on Escape', async () => {
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ tasks: [task] }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+    renderApp();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Ship issue 14' }));
+    const titleInput = screen.getByLabelText('Edit title for "Ship issue 14"');
+
+    fireEvent.change(titleInput, { target: { value: 'Do not save this' } });
+    fireEvent.keyDown(titleInput, { key: 'Escape' });
+
+    expect(await screen.findByRole('button', { name: 'Ship issue 14' })).toBeInTheDocument();
+    expect(
+      fetchMock.mock.calls.some(
+        ([, init]) => (init as RequestInit | undefined)?.method === 'PATCH',
+      ),
+    ).toBe(false);
+  });
 });
