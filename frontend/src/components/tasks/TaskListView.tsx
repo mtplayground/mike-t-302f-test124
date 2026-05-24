@@ -1,4 +1,4 @@
-import { type KeyboardEvent, useEffect, useState } from 'react';
+import { type KeyboardEvent, useEffect, useRef, useState } from 'react';
 import type { Task } from '@zeroclaw/shared';
 import type { TaskUpdate } from '@zeroclaw/shared';
 
@@ -9,6 +9,8 @@ import {
   useTasks,
   useUpdateTask,
 } from '../../api';
+
+const DELETE_UNDO_MS = 5_000;
 
 function todayDateString(): string {
   const today = new Date();
@@ -91,7 +93,7 @@ function TaskMeta({ controlsDisabled, isOverdue, onUpdate, task }: TaskMetaProps
 
 type TaskItemProps = {
   controlsDisabled: boolean;
-  onDelete: (id: string) => void;
+  onDelete: () => void;
   onUpdate: (id: string, input: TaskUpdate) => void;
   task: Task;
 };
@@ -203,11 +205,38 @@ function TaskItem({ controlsDisabled, onDelete, onUpdate, task }: TaskItemProps)
         className="rounded-md px-3 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:text-slate-400"
         disabled={controlsDisabled}
         type="button"
-        onClick={() => onDelete(task.id)}
+        onClick={onDelete}
       >
         Delete
       </button>
     </li>
+  );
+}
+
+type UndoToastProps = {
+  task: Task;
+  onUndo: () => void;
+};
+
+function UndoToast({ onUndo, task }: UndoToastProps) {
+  return (
+    <div
+      className="fixed bottom-4 left-4 right-4 z-10 rounded-lg border border-slate-700 bg-slate-950 p-4 text-white shadow-lg sm:left-auto sm:w-96"
+      role="status"
+    >
+      <div className="flex items-center justify-between gap-4">
+        <p className="min-w-0 text-sm">
+          Deleted <span className="font-semibold">&quot;{task.title}&quot;</span>.
+        </p>
+        <button
+          className="rounded-md bg-white px-3 py-1.5 text-sm font-semibold text-slate-950 transition hover:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-slate-950"
+          type="button"
+          onClick={onUndo}
+        >
+          Undo
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -220,9 +249,46 @@ export function TaskListView({ filter = {}, sort = {} }: TaskListViewProps) {
   const tasksQuery = useTasks(filter, sort);
   const updateTask = useUpdateTask();
   const deleteTask = useDeleteTask();
+  const [pendingDelete, setPendingDelete] = useState<Task | null>(null);
+  const deleteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const mutationError = updateTask.error ?? deleteTask.error;
-  const controlsDisabled = updateTask.isPending || deleteTask.isPending;
+  const controlsDisabled = updateTask.isPending || deleteTask.isPending || Boolean(pendingDelete);
+
+  function clearDeleteTimer() {
+    if (deleteTimerRef.current) {
+      clearTimeout(deleteTimerRef.current);
+      deleteTimerRef.current = null;
+    }
+  }
+
+  function commitDelete(task: Task) {
+    deleteTask.mutate(task.id, {
+      onSettled: () => {
+        setPendingDelete((current) => (current?.id === task.id ? null : current));
+      },
+    });
+  }
+
+  function scheduleDelete(task: Task) {
+    if (pendingDelete) {
+      clearDeleteTimer();
+      commitDelete(pendingDelete);
+    }
+
+    setPendingDelete(task);
+    deleteTimerRef.current = setTimeout(() => {
+      deleteTimerRef.current = null;
+      commitDelete(task);
+    }, DELETE_UNDO_MS);
+  }
+
+  function undoDelete() {
+    clearDeleteTimer();
+    setPendingDelete(null);
+  }
+
+  useEffect(() => clearDeleteTimer, []);
 
   if (tasksQuery.isLoading) {
     return (
@@ -252,8 +318,9 @@ export function TaskListView({ filter = {}, sort = {} }: TaskListViewProps) {
   }
 
   const tasks = tasksQuery.data ?? [];
+  const visibleTasks = pendingDelete ? tasks.filter((task) => task.id !== pendingDelete.id) : tasks;
 
-  if (tasks.length === 0) {
+  if (visibleTasks.length === 0 && !pendingDelete) {
     return (
       <section className="rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center text-slate-700 shadow-sm">
         <h2 className="text-lg font-semibold text-slate-950">No tasks yet.</h2>
@@ -270,17 +337,26 @@ export function TaskListView({ filter = {}, sort = {} }: TaskListViewProps) {
         </div>
       ) : null}
 
-      <ul className="divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white shadow-sm">
-        {tasks.map((task) => (
-          <TaskItem
-            key={task.id}
-            controlsDisabled={controlsDisabled}
-            task={task}
-            onDelete={(id) => deleteTask.mutate(id)}
-            onUpdate={(id, input) => updateTask.mutate({ id, input })}
-          />
-        ))}
-      </ul>
+      {visibleTasks.length === 0 ? (
+        <section className="rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center text-slate-700 shadow-sm">
+          <h2 className="text-lg font-semibold text-slate-950">No tasks yet.</h2>
+          <p className="mt-2 text-sm">New tasks will appear here once they have been added.</p>
+        </section>
+      ) : (
+        <ul className="divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white shadow-sm">
+          {visibleTasks.map((task) => (
+            <TaskItem
+              key={task.id}
+              controlsDisabled={controlsDisabled}
+              task={task}
+              onDelete={() => scheduleDelete(task)}
+              onUpdate={(id, input) => updateTask.mutate({ id, input })}
+            />
+          ))}
+        </ul>
+      )}
+
+      {pendingDelete ? <UndoToast task={pendingDelete} onUndo={undoDelete} /> : null}
     </section>
   );
 }
