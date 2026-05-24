@@ -65,6 +65,7 @@ export function FilterBar({ filter, onChange }: FilterBarProps) {
             {statusOptions.map((option) => (
               <button
                 key={option.value}
+                aria-pressed={selectedStatus === option.value}
                 className={`rounded-md px-3 py-1.5 text-sm font-semibold transition ${statusButtonClass(
                   selectedStatus === option.value,
                 )}`}
