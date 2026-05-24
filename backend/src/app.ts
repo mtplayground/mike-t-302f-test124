@@ -2,12 +2,18 @@ import cors from 'cors';
 import express, { type ErrorRequestHandler, type RequestHandler } from 'express';
 
 import { loadConfig, type AppConfig } from './config/env.js';
+import { createTasksRouter } from './tasks/tasksRoutes.js';
+import { NotFoundError, ValidationError, type TasksService } from './tasks/tasksService.js';
 
 const jsonBodyLimit = '1mb';
 
 type HttpError = Error & {
   status?: number;
   statusCode?: number;
+};
+
+type AppDependencies = {
+  tasksService?: TasksService;
 };
 
 function isHttpError(error: unknown): error is HttpError {
@@ -39,6 +45,27 @@ const notFoundHandler: RequestHandler = (req, res) => {
 const errorHandler: ErrorRequestHandler = (error, _req, res, _next) => {
   void _next;
 
+  if (error instanceof ValidationError) {
+    res.status(error.status).json({
+      error: {
+        code: error.code,
+        message: error.message,
+        issues: error.issues,
+      },
+    });
+    return;
+  }
+
+  if (error instanceof NotFoundError) {
+    res.status(error.status).json({
+      error: {
+        code: error.code,
+        message: error.message,
+      },
+    });
+    return;
+  }
+
   const status = getHttpStatus(error);
   const message = status >= 500 ? 'Internal server error.' : error.message;
 
@@ -53,7 +80,7 @@ const errorHandler: ErrorRequestHandler = (error, _req, res, _next) => {
   });
 };
 
-export function createApp(config: AppConfig = loadConfig()) {
+export function createApp(config: AppConfig = loadConfig(), dependencies: AppDependencies = {}) {
   const app = express();
 
   app.disable('x-powered-by');
@@ -73,6 +100,10 @@ export function createApp(config: AppConfig = loadConfig()) {
       status: 'ok',
     });
   });
+
+  if (dependencies.tasksService) {
+    app.use('/api/tasks', createTasksRouter(dependencies.tasksService));
+  }
 
   app.use(notFoundHandler);
   app.use(errorHandler);

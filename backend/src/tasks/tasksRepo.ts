@@ -107,6 +107,10 @@ function buildListQuery(filter: TaskFilter = {}, sort: TaskSort = {}) {
     params.dueDateTo = parsedFilter.dueDateTo;
   }
 
+  if (parsedFilter.dueDateMissing) {
+    where.push('due_date IS NULL');
+  }
+
   if (parsedFilter.overdue) {
     where.push("due_date IS NOT NULL AND due_date < date('now') AND completed = 0");
   }
