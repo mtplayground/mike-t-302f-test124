@@ -11,8 +11,8 @@
   ],
   "scripts": {
     "dev": "npm run dev --workspaces --if-present",
-    "build": "npm run build --workspaces --if-present",
-    "start": "npm run start --workspace @zeroclaw/backend --if-present",
+    "build": "npm run build --workspace @zeroclaw/shared && npm run build --workspace @zeroclaw/frontend && npm run build --workspace @zeroclaw/backend",
+    "start": "npm run start --workspace @zeroclaw/backend",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
