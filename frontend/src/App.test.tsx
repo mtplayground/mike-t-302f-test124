@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { PropsWithChildren } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -39,6 +39,7 @@ describe('App', () => {
 
   afterEach(() => {
     cleanup();
+    vi.useRealTimers();
     vi.unstubAllGlobals();
   });
 
@@ -55,7 +56,7 @@ describe('App', () => {
     expect(await screen.findByText('No tasks yet.')).toBeInTheDocument();
   });
 
-  it('renders tasks and calls completion and delete endpoints', async () => {
+  it('renders tasks, calls completion endpoint, and starts undoable delete', async () => {
     fetchMock.mockImplementation((_input: RequestInfo | URL, init?: RequestInit) => {
       const method = init?.method ?? 'GET';
 
@@ -97,14 +98,13 @@ describe('App', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
 
-    await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith(
-        '/api/tasks/018f4477-3d07-7d8c-9c41-13d9340d98a2',
-        expect.objectContaining({
-          method: 'DELETE',
-        }),
-      );
-    });
+    expect(screen.getByRole('status')).toHaveTextContent('Deleted "Ship issue 14".');
+    expect(screen.queryByRole('button', { name: 'Ship issue 14' })).not.toBeInTheDocument();
+    expect(
+      fetchMock.mock.calls.some(
+        ([, init]) => (init as RequestInit | undefined)?.method === 'DELETE',
+      ),
+    ).toBe(false);
   });
 
   it('creates a task with an optional due date and clears the form', async () => {
@@ -357,5 +357,64 @@ describe('App', () => {
         }),
       ).toBe(true);
     });
+  });
+
+  it('commits delete after the undo window expires', async () => {
+    fetchMock.mockImplementation((_input: RequestInfo | URL, init?: RequestInit) => {
+      const method = init?.method ?? 'GET';
+
+      if (method === 'DELETE') {
+        return Promise.resolve(new Response(null, { status: 204 }));
+      }
+
+      return Promise.resolve(
+        new Response(JSON.stringify({ tasks: [task] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      );
+    });
+    renderApp();
+
+    await screen.findByText('Ship issue 14');
+    vi.useFakeTimers();
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5_000);
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/tasks/018f4477-3d07-7d8c-9c41-13d9340d98a2',
+      expect.objectContaining({
+        method: 'DELETE',
+      }),
+    );
+  });
+
+  it('restores the task when undo is clicked', async () => {
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ tasks: [task] }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+    renderApp();
+
+    await screen.findByText('Ship issue 14');
+    vi.useFakeTimers();
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5_000);
+    });
+
+    expect(screen.getByRole('button', { name: 'Ship issue 14' })).toBeInTheDocument();
+    expect(
+      fetchMock.mock.calls.some(
+        ([, init]) => (init as RequestInit | undefined)?.method === 'DELETE',
+      ),
+    ).toBe(false);
   });
 });
