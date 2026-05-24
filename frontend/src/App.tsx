@@ -1,17 +1,14 @@
+import { TaskListView } from './components/tasks/TaskListView';
+
 export function App() {
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-100">
-      <section className="mx-auto flex min-h-screen max-w-4xl flex-col items-center justify-center gap-6 px-6 py-16 text-center">
-        <p className="text-sm font-semibold uppercase tracking-wider text-cyan-300">
-          ZeroClaw Tasks
-        </p>
-        <h1 className="text-4xl font-bold sm:text-5xl">
-          Hello from Vite, React, and Tailwind CSS.
-        </h1>
-        <p className="max-w-2xl text-base leading-7 text-slate-300 sm:text-lg">
-          The frontend workspace is ready for the task app features that will be added in upcoming
-          issues.
-        </p>
+    <main className="min-h-screen bg-slate-100 text-slate-950">
+      <section className="mx-auto w-full max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
+        <header className="mb-6">
+          <p className="text-sm font-semibold text-slate-600">ZeroClaw Tasks</p>
+          <h1 className="mt-2 text-3xl font-bold">Tasks</h1>
+        </header>
+        <TaskListView />
       </section>
     </main>
   );
