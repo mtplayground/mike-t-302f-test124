@@ -4,6 +4,15 @@ import type { TaskUpdate } from '@zeroclaw/shared';
 
 import { useDeleteTask, useTasks, useUpdateTask } from '../../api';
 
+function todayDateString(): string {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+
+  return `${year}-${month}-${day}`;
+}
+
 function formatDate(date: string): string {
   return new Intl.DateTimeFormat(undefined, {
     month: 'short',
@@ -16,9 +25,58 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Something went wrong.';
 }
 
-function TaskMeta({ task }: { task: Task }) {
+function isTaskOverdue(task: Task): boolean {
+  return Boolean(task.dueDate && !task.completed && task.dueDate < todayDateString());
+}
+
+type TaskMetaProps = {
+  controlsDisabled: boolean;
+  isOverdue: boolean;
+  onUpdate: (id: string, input: TaskUpdate) => void;
+  task: Task;
+};
+
+function TaskMeta({ controlsDisabled, isOverdue, onUpdate, task }: TaskMetaProps) {
   return (
-    <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-500">
+    <div className="mt-2 flex flex-wrap items-end gap-3 text-sm text-slate-500">
+      <label className="block">
+        <span className="block text-xs font-medium text-slate-500">Due date</span>
+        <input
+          aria-label={`Due date for "${task.title}"`}
+          className={
+            isOverdue
+              ? 'mt-1 block rounded-md border border-red-300 bg-red-50 px-2 py-1 text-red-950 outline-none transition focus:border-red-700 focus:ring-2 focus:ring-red-700/20'
+              : 'mt-1 block rounded-md border border-slate-300 bg-white px-2 py-1 text-slate-950 outline-none transition focus:border-slate-950 focus:ring-2 focus:ring-slate-950/20'
+          }
+          disabled={controlsDisabled}
+          type="date"
+          value={task.dueDate ?? ''}
+          onChange={(event) =>
+            onUpdate(task.id, {
+              dueDate: event.target.value || null,
+            })
+          }
+        />
+      </label>
+
+      {task.dueDate ? (
+        <button
+          aria-label={`Clear due date for "${task.title}"`}
+          className="rounded-md px-2 py-1 font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-950 focus:outline-none focus:ring-2 focus:ring-slate-950/30 disabled:cursor-not-allowed disabled:text-slate-400"
+          disabled={controlsDisabled}
+          type="button"
+          onClick={() => onUpdate(task.id, { dueDate: null })}
+        >
+          Clear
+        </button>
+      ) : null}
+
+      {isOverdue ? (
+        <span className="rounded-full bg-red-100 px-2 py-1 text-xs font-semibold text-red-800">
+          Overdue
+        </span>
+      ) : null}
+
       {task.dueDate ? <span>Due {formatDate(task.dueDate)}</span> : <span>No due date</span>}
       <span>Updated {new Date(task.updatedAt).toLocaleDateString()}</span>
     </div>
@@ -35,6 +93,7 @@ type TaskItemProps = {
 function TaskItem({ controlsDisabled, onDelete, onUpdate, task }: TaskItemProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [draftTitle, setDraftTitle] = useState(task.title);
+  const overdue = isTaskOverdue(task);
 
   useEffect(() => {
     if (!isEditing) {
@@ -79,7 +138,13 @@ function TaskItem({ controlsDisabled, onDelete, onUpdate, task }: TaskItemProps)
   }
 
   return (
-    <li className="flex items-start gap-4 px-4 py-4 sm:px-5">
+    <li
+      className={
+        overdue
+          ? 'flex items-start gap-4 bg-red-50/60 px-4 py-4 sm:px-5'
+          : 'flex items-start gap-4 px-4 py-4 sm:px-5'
+      }
+    >
       <input
         aria-label={`Mark "${task.title}" as ${task.completed ? 'active' : 'completed'}`}
         checked={task.completed}
@@ -120,7 +185,12 @@ function TaskItem({ controlsDisabled, onDelete, onUpdate, task }: TaskItemProps)
             {task.title}
           </button>
         )}
-        <TaskMeta task={task} />
+        <TaskMeta
+          controlsDisabled={controlsDisabled}
+          isOverdue={overdue}
+          task={task}
+          onUpdate={onUpdate}
+        />
       </div>
 
       <button
