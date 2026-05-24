@@ -252,4 +252,80 @@ describe('App', () => {
       ),
     ).toBe(false);
   });
+
+  it('sets a task due date from the row date picker', async () => {
+    fetchMock.mockImplementation((_input: RequestInfo | URL, init?: RequestInit) => {
+      const method = init?.method ?? 'GET';
+
+      if (method === 'PATCH') {
+        return Promise.resolve(
+          new Response(JSON.stringify({ task: { ...task, dueDate: '2026-06-01' } }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }),
+        );
+      }
+
+      return Promise.resolve(
+        new Response(JSON.stringify({ tasks: [task] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      );
+    });
+    renderApp();
+
+    const dueDateInput = await screen.findByLabelText('Due date for "Ship issue 14"');
+
+    fireEvent.change(dueDateInput, { target: { value: '2026-06-01' } });
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/tasks/018f4477-3d07-7d8c-9c41-13d9340d98a2',
+        expect.objectContaining({
+          body: JSON.stringify({ dueDate: '2026-06-01' }),
+          method: 'PATCH',
+        }),
+      );
+    });
+  });
+
+  it('marks overdue tasks and clears their due date', async () => {
+    const overdueTask = { ...task, dueDate: '2020-01-01' };
+
+    fetchMock.mockImplementation((_input: RequestInfo | URL, init?: RequestInit) => {
+      const method = init?.method ?? 'GET';
+
+      if (method === 'PATCH') {
+        return Promise.resolve(
+          new Response(JSON.stringify({ task: { ...overdueTask, dueDate: null } }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }),
+        );
+      }
+
+      return Promise.resolve(
+        new Response(JSON.stringify({ tasks: [overdueTask] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      );
+    });
+    renderApp();
+
+    expect(await screen.findByText('Overdue')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear due date for "Ship issue 14"' }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/tasks/018f4477-3d07-7d8c-9c41-13d9340d98a2',
+        expect.objectContaining({
+          body: JSON.stringify({ dueDate: null }),
+          method: 'PATCH',
+        }),
+      );
+    });
+  });
 });
