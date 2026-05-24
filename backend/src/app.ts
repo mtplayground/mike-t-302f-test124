@@ -34,6 +34,27 @@ function getHttpStatus(error: unknown): number {
   return status;
 }
 
+function isMissingFileError(error: unknown): error is NodeJS.ErrnoException {
+  return error instanceof Error && 'code' in error && error.code === 'ENOENT';
+}
+
+function createFrontendFallbackHandler(staticDir: string): RequestHandler {
+  return (_req, res, next) => {
+    res.sendFile('index.html', { root: staticDir }, (error) => {
+      if (!error) {
+        return;
+      }
+
+      if (isMissingFileError(error)) {
+        next();
+        return;
+      }
+
+      next(error);
+    });
+  };
+}
+
 const notFoundHandler: RequestHandler = (req, res) => {
   res.status(404).json({
     error: {
@@ -104,6 +125,9 @@ export function createApp(config: AppConfig = loadConfig(), dependencies: AppDep
   if (dependencies.tasksService) {
     app.use('/api/tasks', createTasksRouter(dependencies.tasksService));
   }
+
+  app.use(express.static(config.frontendStaticDir));
+  app.get(/^(?!\/api(?:\/|$)).*/, createFrontendFallbackHandler(config.frontendStaticDir));
 
   app.use(notFoundHandler);
   app.use(errorHandler);
