@@ -314,9 +314,13 @@ describe('App', () => {
     });
     renderApp();
 
-    expect(await screen.findByText('Overdue')).toBeInTheDocument();
+    const clearDueDateButton = await screen.findByRole('button', {
+      name: 'Clear due date for "Ship issue 14"',
+    });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Clear due date for "Ship issue 14"' }));
+    expect(screen.getAllByText('Overdue').length).toBeGreaterThan(0);
+
+    fireEvent.click(clearDueDateButton);
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
@@ -326,6 +330,32 @@ describe('App', () => {
           method: 'PATCH',
         }),
       );
+    });
+  });
+
+  it('drives task query params from filter and sort controls', async () => {
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ tasks: [] }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+    renderApp();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Active' }));
+    fireEvent.change(screen.getByLabelText('Due bucket'), { target: { value: 'overdue' } });
+    fireEvent.change(screen.getByLabelText('Sort by'), { target: { value: 'dueDate:desc' } });
+
+    await waitFor(() => {
+      expect(
+        fetchMock.mock.calls.some(([input]) => {
+          const url = String(input);
+          return (
+            url === '/api/tasks?status=active&bucket=overdue&sort=dueDate%3Adesc' ||
+            url === '/api/tasks?status=active&bucket=overdue&sort=dueDate:desc'
+          );
+        }),
+      ).toBe(true);
     });
   });
 });

@@ -2,7 +2,13 @@ import { type KeyboardEvent, useEffect, useState } from 'react';
 import type { Task } from '@zeroclaw/shared';
 import type { TaskUpdate } from '@zeroclaw/shared';
 
-import { useDeleteTask, useTasks, useUpdateTask } from '../../api';
+import {
+  type TaskListFilter,
+  type TaskListSort,
+  useDeleteTask,
+  useTasks,
+  useUpdateTask,
+} from '../../api';
 
 function todayDateString(): string {
   const today = new Date();
@@ -205,8 +211,13 @@ function TaskItem({ controlsDisabled, onDelete, onUpdate, task }: TaskItemProps)
   );
 }
 
-export function TaskListView() {
-  const tasksQuery = useTasks();
+type TaskListViewProps = {
+  filter?: TaskListFilter;
+  sort?: TaskListSort;
+};
+
+export function TaskListView({ filter = {}, sort = {} }: TaskListViewProps) {
+  const tasksQuery = useTasks(filter, sort);
   const updateTask = useUpdateTask();
   const deleteTask = useDeleteTask();
 
