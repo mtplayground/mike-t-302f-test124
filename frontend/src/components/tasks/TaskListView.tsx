@@ -1,4 +1,6 @@
+import { type KeyboardEvent, useEffect, useState } from 'react';
 import type { Task } from '@zeroclaw/shared';
+import type { TaskUpdate } from '@zeroclaw/shared';
 
 import { useDeleteTask, useTasks, useUpdateTask } from '../../api';
 
@@ -20,6 +22,116 @@ function TaskMeta({ task }: { task: Task }) {
       {task.dueDate ? <span>Due {formatDate(task.dueDate)}</span> : <span>No due date</span>}
       <span>Updated {new Date(task.updatedAt).toLocaleDateString()}</span>
     </div>
+  );
+}
+
+type TaskItemProps = {
+  controlsDisabled: boolean;
+  onDelete: (id: string) => void;
+  onUpdate: (id: string, input: TaskUpdate) => void;
+  task: Task;
+};
+
+function TaskItem({ controlsDisabled, onDelete, onUpdate, task }: TaskItemProps) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [draftTitle, setDraftTitle] = useState(task.title);
+
+  useEffect(() => {
+    if (!isEditing) {
+      setDraftTitle(task.title);
+    }
+  }, [isEditing, task.title]);
+
+  function startEditing() {
+    if (!controlsDisabled) {
+      setIsEditing(true);
+    }
+  }
+
+  function cancelEditing() {
+    setDraftTitle(task.title);
+    setIsEditing(false);
+  }
+
+  function saveEditing() {
+    const nextTitle = draftTitle.trim();
+
+    if (!nextTitle || nextTitle === task.title) {
+      cancelEditing();
+      return;
+    }
+
+    setIsEditing(false);
+    onUpdate(task.id, { title: nextTitle });
+  }
+
+  function handleTitleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      saveEditing();
+      return;
+    }
+
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      cancelEditing();
+    }
+  }
+
+  return (
+    <li className="flex items-start gap-4 px-4 py-4 sm:px-5">
+      <input
+        aria-label={`Mark "${task.title}" as ${task.completed ? 'active' : 'completed'}`}
+        checked={task.completed}
+        className="mt-1 h-5 w-5 rounded border-slate-300 text-slate-950 focus:ring-slate-950"
+        disabled={controlsDisabled}
+        type="checkbox"
+        onChange={() =>
+          onUpdate(task.id, {
+            completed: !task.completed,
+          })
+        }
+      />
+
+      <div className="min-w-0 flex-1">
+        {isEditing ? (
+          <input
+            aria-label={`Edit title for "${task.title}"`}
+            autoFocus
+            className="block w-full rounded-md border border-slate-300 px-2 py-1 font-medium text-slate-950 shadow-sm outline-none transition focus:border-slate-950 focus:ring-2 focus:ring-slate-950/20"
+            maxLength={200}
+            type="text"
+            value={draftTitle}
+            onBlur={saveEditing}
+            onChange={(event) => setDraftTitle(event.target.value)}
+            onKeyDown={handleTitleKeyDown}
+          />
+        ) : (
+          <button
+            className={
+              task.completed
+                ? 'block break-words text-left font-medium text-slate-500 line-through outline-none hover:text-slate-700 focus:rounded-sm focus:ring-2 focus:ring-slate-950/30'
+                : 'block break-words text-left font-medium text-slate-950 outline-none hover:text-slate-700 focus:rounded-sm focus:ring-2 focus:ring-slate-950/30'
+            }
+            disabled={controlsDisabled}
+            type="button"
+            onClick={startEditing}
+          >
+            {task.title}
+          </button>
+        )}
+        <TaskMeta task={task} />
+      </div>
+
+      <button
+        className="rounded-md px-3 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:text-slate-400"
+        disabled={controlsDisabled}
+        type="button"
+        onClick={() => onDelete(task.id)}
+      >
+        Delete
+      </button>
+    </li>
   );
 }
 
@@ -79,43 +191,13 @@ export function TaskListView() {
 
       <ul className="divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white shadow-sm">
         {tasks.map((task) => (
-          <li key={task.id} className="flex items-start gap-4 px-4 py-4 sm:px-5">
-            <input
-              aria-label={`Mark "${task.title}" as ${task.completed ? 'active' : 'completed'}`}
-              checked={task.completed}
-              className="mt-1 h-5 w-5 rounded border-slate-300 text-slate-950 focus:ring-slate-950"
-              disabled={controlsDisabled}
-              type="checkbox"
-              onChange={() =>
-                updateTask.mutate({
-                  id: task.id,
-                  input: { completed: !task.completed },
-                })
-              }
-            />
-
-            <div className="min-w-0 flex-1">
-              <p
-                className={
-                  task.completed
-                    ? 'break-words font-medium text-slate-500 line-through'
-                    : 'break-words font-medium text-slate-950'
-                }
-              >
-                {task.title}
-              </p>
-              <TaskMeta task={task} />
-            </div>
-
-            <button
-              className="rounded-md px-3 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:text-slate-400"
-              disabled={controlsDisabled}
-              type="button"
-              onClick={() => deleteTask.mutate(task.id)}
-            >
-              Delete
-            </button>
-          </li>
+          <TaskItem
+            key={task.id}
+            controlsDisabled={controlsDisabled}
+            task={task}
+            onDelete={(id) => deleteTask.mutate(id)}
+            onUpdate={(id, input) => updateTask.mutate({ id, input })}
+          />
         ))}
       </ul>
     </section>
