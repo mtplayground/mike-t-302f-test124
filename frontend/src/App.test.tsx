@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { PropsWithChildren } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -38,6 +38,7 @@ describe('App', () => {
   });
 
   afterEach(() => {
+    cleanup();
     vi.unstubAllGlobals();
   });
 
@@ -103,6 +104,51 @@ describe('App', () => {
           method: 'DELETE',
         }),
       );
+    });
+  });
+
+  it('creates a task with an optional due date and clears the form', async () => {
+    fetchMock.mockImplementation((_input: RequestInfo | URL, init?: RequestInit) => {
+      const method = init?.method ?? 'GET';
+
+      if (method === 'POST') {
+        return Promise.resolve(
+          new Response(JSON.stringify({ task: { ...task, title: 'Write issue 15' } }), {
+            status: 201,
+            headers: { 'Content-Type': 'application/json' },
+          }),
+        );
+      }
+
+      return Promise.resolve(
+        new Response(JSON.stringify({ tasks: [] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      );
+    });
+    renderApp();
+
+    const titleInput = await screen.findByLabelText('Task title');
+    const dueDateInput = screen.getByLabelText('Due date');
+
+    fireEvent.change(titleInput, { target: { value: '  Write issue 15  ' } });
+    fireEvent.change(dueDateInput, { target: { value: '2026-05-30' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add task' }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/tasks',
+        expect.objectContaining({
+          body: JSON.stringify({ title: 'Write issue 15', dueDate: '2026-05-30' }),
+          method: 'POST',
+        }),
+      );
+    });
+
+    await waitFor(() => {
+      expect(titleInput).toHaveValue('');
+      expect(dueDateInput).toHaveValue('');
     });
   });
 });

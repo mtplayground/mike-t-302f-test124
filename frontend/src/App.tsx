@@ -1,3 +1,4 @@
+import { AddTaskForm } from './components/tasks/AddTaskForm';
 import { TaskListView } from './components/tasks/TaskListView';
 
 export function App() {
@@ -8,6 +9,7 @@ export function App() {
           <p className="text-sm font-semibold text-slate-600">ZeroClaw Tasks</p>
           <h1 className="mt-2 text-3xl font-bold">Tasks</h1>
         </header>
+        <AddTaskForm />
         <TaskListView />
       </section>
     </main>
