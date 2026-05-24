@@ -57,6 +57,7 @@ export const TaskFilter = z
     search: z.string().trim().min(1).max(200).optional(),
     dueDateFrom: TaskDate.optional(),
     dueDateTo: TaskDate.optional(),
+    dueDateMissing: z.boolean().optional(),
     overdue: z.boolean().optional(),
   })
   .strict();

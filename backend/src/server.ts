@@ -4,6 +4,8 @@ import { createApp } from './app.js';
 import { loadConfig } from './config/env.js';
 import { openDatabase } from './db/database.js';
 import { runMigrations } from './db/migrations.js';
+import { createTasksRepo } from './tasks/tasksRepo.js';
+import { createTasksService } from './tasks/tasksService.js';
 
 function startServer() {
   const config = loadConfig();
@@ -11,7 +13,9 @@ function startServer() {
 
   runMigrations(database);
 
-  const app = createApp(config);
+  const tasksRepo = createTasksRepo(database);
+  const tasksService = createTasksService(tasksRepo);
+  const app = createApp(config, { tasksService });
   const server = createServer(app);
 
   server.listen(config.port, config.host, () => {
